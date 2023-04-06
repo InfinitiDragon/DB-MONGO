@@ -1,48 +1,62 @@
+const express = require('express');
 const { MongoClient } = require('mongodb');
-// or as an es module:
-// import { MongoClient } from 'mongodb'
 
-// Connection URL
-const url = "mongodb+srv://jew:2MYxkfffwYzIvB2E@cluster0.bl6agnk.mongodb.net/?retryWrites=true&w=majority";
+const app = express();
+
+const IP = 'localhost';
+const PORT = 3000;
+
+const url = "mongodb+srv://romanroketskiy05:Roman080805MLP@reynes.73bphty.mongodb.net/?retryWrites=true&w=majority";
+const dbName = 'myProject';
 const client = new MongoClient(url);
 
-// Database Name
-const dbName = 'myProject';
-
-async function main() {
-  // Use connect method to connect to the server
+async function connectToDb() {
   await client.connect();
-  console.log('Connected successfully to server');
-  const db = client.db(dbName);
-  const collection = db.collection('documents');
-
-  // the following code examples can be pasted here...
-
-  return 'done.';
+  console.log('Connected to MongoDB server');
 }
 
-main()
-  .then(console.log)
-  .catch(console.error)
-  .finally(() => client.close());
+connectToDb().catch(console.error);
 
-  const mongoose = require('mongoose');
+app.use(express.json());
 
-// з'єднання з базою даних MongoDB
-mongoose.connect('mongodb://localhost:27017/mydatabase', { useNewUrlParser: true, useUnifiedTopology: true });
+app.get('/', (req, res) => {
+    res.send('Hello world!');
+}) 
 
-// створення схеми для даних
-const dataSchema = new mongoose.Schema({
-  nodeId: String,
-  value: Number,
-  date: Date
+app.get('/base/:_id?', async (req, res) => {
+  const db = client.db(dbName);
+  const collection = db.collection('temperatureData');
+
+  try {
+      if (req.params.id) {
+          const document = await collection.findOne({ _id: req.params.id });
+          if (document) {
+              res.json(document);
+          } else {
+              res.status(404).send('There is no information');
+          }
+      } else {
+          const documents = await collection.find().toArray();
+          res.status(201).json(documents);
+      }
+  } catch (err) {
+      console.error(err);
+      res.status(500).send(err.message);
+  }
 });
 
-// створення моделі для даних
-const Data = mongoose.model('Data', dataSchema);
+const filter = {
+  sensorId: { $in: ['sensor1', 'sensor2'] },
+  timestamp: { $gte: new Date('2022-01-01'), $lt: new Date('2022-02-01') }
+};
 
-// отримання даних за період по id датчика
-Data.find({ nodeId: 'yourNodeId', date: { $gte: new Date('2022-01-01'), $lte: new Date('2022-01-31') } }, (err, data) => {
-  if (err) throw err;
-  console.log(data);
+const cursor = collection.find(filter);
+
+cursor.toArray(function(err, docs) {
+  console.log(docs);
+  client.close();
+});
+
+app.listen(3000, () => {
+  console.log(`Server listening on http://${IP}:${PORT}/`);
 });
